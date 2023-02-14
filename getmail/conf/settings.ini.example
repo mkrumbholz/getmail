@@ -8,10 +8,23 @@ imap_move_enable:  False
 imap_move_folder:  getmail
 imap_sync_folder:  INBOX
 imap_ssl:          True
+
+#Only one is active: "lmtp" or "smtp"
+send_protocol:     lmtp
+
 lmtp_hostname:     dovecot-mailcow
 lmtp_port:         24
 lmtp_debug:        False
 lmtp_recipient:    CHANGE-ME@YOUR-MAILCOW-MAILBOX-ADDRESS.EXAMPLE
+
+smtp_hostname:     piler
+smtp_port:         25
+smtp_debug:        False
+smtp_recipient:    CHANGE-ME@YOUR-MAILCOW-MAILBOX-ADDRESS.EXAMPLE
+
+clamd_hostname:    clamav
+clamd_port:        3310
+clamd_active:      False
 
 #[example_insecure_test1_gmx.de]
 #imap_hostname:     imap.gmx.net
