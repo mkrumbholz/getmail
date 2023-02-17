@@ -16,10 +16,16 @@ services:
 
     #optional
     clamav:
-      image: mkodockx/docker-clamav:alpine
+      image: clamav/clamav:stable
       expose: 
         - "3310"
+      volumes:
+        - clam_db:/var/lib/clamav
       restart: always
+
+#optional
+volumes:
+  clam_db:
 
 #docker network create --driver=bridge --ipv6 --subnet=fdcb:9c90:23:11::/64 --gateway=fdcb:9c90:23:11::1 --subnet=172.23.11.0/24 --gateway=172.23.11.1 -o "com.docker.network.bridge.name"="br-getmail" network-getmail     
 networks:
