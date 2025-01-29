@@ -114,7 +114,7 @@ class Getmail(threading.Thread):
     def imap_idle(self):
         self.imap_start_connection()
         self.create_imap_move_folder()
-        logging.info("IMAP fetch mail - inital")
+        logging.info("IMAP fetch mail - initial")
         self.imap_fetch_mail()
 
         # Start IDLE mode
@@ -198,10 +198,14 @@ class Getmail(threading.Thread):
                 return False
               #Send mail to check
               try:
+                #!!Todo!! Create Buffer 
                 email_bytes = email_message.as_bytes()
+                #Send frame start
                 s.send(b'nINSTREAM\n')
+                #Send buffer
                 s.send(len(email_bytes).to_bytes(4, byteorder='big', signed=False))
                 s.send(email_bytes)
+                #Send frame end
                 s.send(int(0).to_bytes(4, byteorder='big', signed=False))
                 result = s.recv(4096).decode("utf-8").strip()
               except (socket.error, BrokenPipeError) as e:
@@ -272,6 +276,7 @@ class Getmail(threading.Thread):
             lmtp.set_debuglevel(1)
 
           email_message['X-getmail-retrieved-from-mailbox-user'] = self.imap_username
+          #email_message['X-getmail-retrieved-from-mailbox-folder'] = self.imap_sync_folder
 
           try:
             #https://docs.python.org/3/library/smtplib.html#smtplib.SMTP.send_message
