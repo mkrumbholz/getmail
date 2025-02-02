@@ -13,6 +13,7 @@ import signal
 import logging
 import sys
 import socket
+import struct
 
 import imapclient
 import configparser
@@ -33,31 +34,32 @@ class Getmail(threading.Thread):
         self.last_renew_imap_idle_connection = time.monotonic()
         self.idle_check_timeout = 1
 
-        self.imap_hostname    = configparser_file.get(       config_name, 'imap_hostname')
-        self.imap_port        = configparser_file.getint(    config_name, 'imap_port')
-        self.imap_ssl         = configparser_file.getboolean(config_name, 'imap_ssl', fallback=True)
-        self.imap_username    = configparser_file.get(       config_name, 'imap_username')
-        self.imap_password    = configparser_file.get(       config_name, 'imap_password')
-        self.imap_move_folder = configparser_file.get(       config_name, 'imap_move_folder', fallback="getmail")
-        self.imap_sync_folder = configparser_file.get(       config_name, 'imap_sync_folder', fallback="INBOX")
-        self.imap_move_enable = configparser_file.getboolean(config_name, 'imap_move_enable', fallback=False)
-        self.imap_debug       = configparser_file.getboolean(config_name, 'imap_debug', fallback=False)
+        self.imap_hostname        = configparser_file.get(       config_name, 'imap_hostname')
+        self.imap_port            = configparser_file.getint(    config_name, 'imap_port')
+        self.imap_ssl             = configparser_file.getboolean(config_name, 'imap_ssl', fallback=True)
+        self.imap_username        = configparser_file.get(       config_name, 'imap_username')
+        self.imap_password        = configparser_file.get(       config_name, 'imap_password')
+        self.imap_move_folder     = configparser_file.get(       config_name, 'imap_move_folder', fallback="getmail")
+        self.imap_sync_folder     = configparser_file.get(       config_name, 'imap_sync_folder', fallback="INBOX")
+        self.imap_move_enable     = configparser_file.getboolean(config_name, 'imap_move_enable', fallback=False)
+        self.imap_debug           = configparser_file.getboolean(config_name, 'imap_debug', fallback=False)
 
-        self.send_protocol    = configparser_file.get(       config_name, 'send_protocol', fallback="lmtp")
+        self.send_protocol        = configparser_file.get(       config_name, 'send_protocol', fallback="lmtp")
 
-        self.lmtp_hostname    = configparser_file.get(       config_name, 'lmtp_hostname', fallback="localhost")
-        self.lmtp_port        = configparser_file.getint(    config_name, 'lmtp_port', fallback=24)
-        self.lmtp_recipient   = configparser_file.get(       config_name, 'lmtp_recipient', fallback="local@localhost")
-        self.lmtp_debug       = configparser_file.getboolean(config_name, 'lmtp_debug', fallback=False)
+        self.lmtp_hostname        = configparser_file.get(       config_name, 'lmtp_hostname', fallback="localhost")
+        self.lmtp_port            = configparser_file.getint(    config_name, 'lmtp_port', fallback=24)
+        self.lmtp_recipient       = configparser_file.get(       config_name, 'lmtp_recipient', fallback="local@localhost")
+        self.lmtp_debug           = configparser_file.getboolean(config_name, 'lmtp_debug', fallback=False)
 
-        self.smtp_hostname    = configparser_file.get(       config_name, 'smtp_hostname', fallback="localhost")
-        self.smtp_port        = configparser_file.getint(    config_name, 'smtp_port', fallback=25)
-        self.smtp_recipient   = configparser_file.get(       config_name, 'smtp_recipient', fallback="local@localhost")
-        self.smtp_debug       = configparser_file.getboolean(config_name, 'smtp_debug', fallback=False)
+        self.smtp_hostname        = configparser_file.get(       config_name, 'smtp_hostname', fallback="localhost")
+        self.smtp_port            = configparser_file.getint(    config_name, 'smtp_port', fallback=25)
+        self.smtp_recipient       = configparser_file.get(       config_name, 'smtp_recipient', fallback="local@localhost")
+        self.smtp_debug           = configparser_file.getboolean(config_name, 'smtp_debug', fallback=False)
 
-        self.clamd_active     = configparser_file.getboolean(config_name, 'clamd_active', fallback=False)
-        self.clamd_hostname   = configparser_file.get(       config_name, 'clamd_hostname', fallback="clamav")
-        self.clamd_port       = configparser_file.getint(    config_name, 'clamd_port', fallback=3310)
+        self.clamd_active         = configparser_file.getboolean(config_name, 'clamd_active', fallback=False)
+        self.clamd_hostname       = configparser_file.get(       config_name, 'clamd_hostname', fallback="clamav")
+        self.clamd_port           = configparser_file.getint(    config_name, 'clamd_port', fallback=3310)
+        self.clamd_max_chunk_size = configparser_file.getint(    config_name, 'clamd_max_chunk_size', fallback=1024) # MUST be < StreamMaxLength in /etc/clamav/clamd.conf
 
     def run(self):
         while not self.exit_imap_idle_loop:
@@ -198,15 +200,20 @@ class Getmail(threading.Thread):
                 return False
               #Send mail to check
               try:
-                #!!Todo!! Create Buffer 
                 email_bytes = email_message.as_bytes()
-                #Send frame start
+                #Send the start frame
                 s.send(b'nINSTREAM\n')
-                #Send buffer
-                s.send(len(email_bytes).to_bytes(4, byteorder='big', signed=False))
-                s.send(email_bytes)
+                # Calculate total length
+                total_length = len(email_bytes)
+                # Loop through each chunk and send with its length
+                for i in range(0, total_length, self.clamd_max_chunk_size):
+                  chunk = email_bytes[i:i+self.clamd_max_chunk_size]
+                  chunk_length = struct.pack(b'!L', len(chunk))
+                  s.send(chunk_length + chunk)
                 #Send frame end
-                s.send(int(0).to_bytes(4, byteorder='big', signed=False))
+                #s.send(int(0).to_bytes(4, byteorder='big', signed=False))
+                s.send(struct.pack(b'!L', 0))
+                #Get result
                 result = s.recv(4096).decode("utf-8").strip()
               except (socket.error, BrokenPipeError) as e:
                 logging.error(f"Error sending attachment to ClamAV: {e}")
