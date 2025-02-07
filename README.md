@@ -25,7 +25,7 @@ Install:
   ```
 - Start mailcow and getmail.
   ```
-   cd /opt/getmail/conf
+   cd /opt/getmail
    docker compose build 
    cd /opt/mailcow-dockerized
    docker compose  up -d
