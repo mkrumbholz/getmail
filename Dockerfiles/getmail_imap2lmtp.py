@@ -17,6 +17,7 @@ import struct
 
 import imapclient
 import configparser
+import humanfriendly
 
 class Getmail(threading.Thread):
 
@@ -57,9 +58,9 @@ class Getmail(threading.Thread):
         self.smtp_debug           = configparser_file.getboolean(config_name, 'smtp_debug', fallback=False)
 
         self.clamd_active         = configparser_file.getboolean(config_name, 'clamd_active', fallback=False)
-        self.clamd_hostname       = configparser_file.get(       config_name, 'clamd_hostname', fallback="clamav")
+        self.clamd_hostname       = configparser_file.get(       config_name, 'clamd_hostname', fallback="clamd")
         self.clamd_port           = configparser_file.getint(    config_name, 'clamd_port', fallback=3310)
-        self.clamd_max_chunk_size = configparser_file.getint(    config_name, 'clamd_max_chunk_size', fallback=1024) # MUST be < StreamMaxLength in /etc/clamav/clamd.conf
+        self.clamd_max_chunk_size = humanfriendly.parse_size(configparser_file.get(config_name, 'clamd_max_chunk_size', fallback="10MB"), binary=True) # MUST be < StreamMaxLength in /etc/clamav/clamd.conf
 
     def run(self):
         while not self.exit_imap_idle_loop:
@@ -201,7 +202,7 @@ class Getmail(threading.Thread):
               #Send mail to check
               try:
                 email_bytes = email_message.as_bytes()
-                #Send the start frame
+                #Send start frame
                 s.send(b'nINSTREAM\n')
                 # Calculate total length
                 total_length = len(email_bytes)
@@ -210,8 +211,7 @@ class Getmail(threading.Thread):
                   chunk = email_bytes[i:i+self.clamd_max_chunk_size]
                   chunk_length = struct.pack(b'!L', len(chunk))
                   s.send(chunk_length + chunk)
-                #Send frame end
-                #s.send(int(0).to_bytes(4, byteorder='big', signed=False))
+                #Send end frame
                 s.send(struct.pack(b'!L', 0))
                 #Get result
                 result = s.recv(4096).decode("utf-8").strip()
@@ -286,7 +286,6 @@ class Getmail(threading.Thread):
           #email_message['X-getmail-retrieved-from-mailbox-folder'] = self.imap_sync_folder
 
           try:
-            #https://docs.python.org/3/library/smtplib.html#smtplib.SMTP.send_message
             lmtp.send_message(email_message, to_addrs=self.lmtp_recipient)
           except Exception as e:
             logging.error("LMTP deliver (Exception - send_message #1): %s" % (e))
@@ -343,6 +342,7 @@ class Getmail(threading.Thread):
           smtp.ehlo()
 
           try:
+            #https://docs.python.org/3/library/smtplib.html#smtplib.SMTP.send_message
             smtp.send_message(email_message, to_addrs=self.smtp_recipient)
           except Exception as e:
             logging.error("SMTP deliver (Exception - send_message #1): %s" % (e))

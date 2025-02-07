@@ -1,10 +1,21 @@
-version: '2.1'
 services:
-
-    dovecot-mailcow:
+    getmail-mailcow:
+      image: cb/getmail
+      pull_policy: never
+      build: /opt/getmail/Dockerfiles
+      environment:
+        - TZ=${TZ}
+      volumes:
+        - /opt/getmail/conf/settings.ini:/app/settings.ini:ro
+      depends_on:
+        clamd-mailcow:
+          condition: service_healthy
+        dovecot-mailcow:
+          condition: service_started
+      restart: always
+      mem_limit: 1g
+      mem_reservation: 100m
       networks:
-        network-getmail:
-
-networks:
-  network-getmail:
-    external: true    
+        mailcow-network:
+          aliases:
+            - getmail    

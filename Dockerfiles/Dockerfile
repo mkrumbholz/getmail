@@ -15,7 +15,7 @@ RUN apk add --update --no-cache python3 py3-pip py3-virtualenv tzdata \
 
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN pip install imapclient
+RUN pip install imapclient humanfriendly
 
 USER appuser
 

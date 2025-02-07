@@ -18,11 +18,6 @@ Install:
    ```
    cp /opt/getmail/mailcow-dockerized_docker-compose.override.yml /opt/mailcow-dockerized/docker-compose.override.yml
    ```
-- Because the docker network "network-getmail" is used independently in mailcow and getmail, the network "network-getmail" must be created externally (i.e. not in the docker-compose.yml).
-  Any other IP range can be used, it should only not be already in use (test: ip show -6 route show, ip show route show).
-  ```
-   docker network create --driver=bridge --ipv6 --subnet=fdcb:9c90:23:11::/64 --gateway=fdcb:9c90:23:11::1 --subnet=172.23.11.0/24 --gateway=172.23.11.1 -o "com.docker.network.bridge.name"="br-getmail" network-getmail
-  ```
 - Config file must be customized
   ```
    cp /opt/getmail/conf/settings.ini.example  /opt/getmail/conf/settings.ini
@@ -30,13 +25,14 @@ Install:
   ```
 - Start mailcow and getmail.
   ```
-   cd /opt/conf/getmail
+   cd /opt/getmail/conf
    docker compose build 
+   cd /opt/mailcow-dockerized
    docker compose  up -d
   ```
  - Now check the logs from getmail
    ```
-   docker compose logs
+   docker compose logs getmail-mailcow
    ```
 
 

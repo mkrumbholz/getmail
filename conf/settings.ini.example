@@ -22,20 +22,22 @@ smtp_port:         25
 smtp_debug:        False
 smtp_recipient:    CHANGE-ME@YOUR-MAILCOW-MAILBOX-ADDRESS.EXAMPLE
 
-clamd_hostname:    clamav
+clamd_hostname:    clamd
 clamd_port:        3310
 clamd_active:      False
-clamd_max_chunk_size: 1024
+clamd_max_chunk_size: 10MB
 
 #[example_insecure_test1_gmx.de]
 #imap_hostname:     imap.gmx.net
 #imap_port:         143
+#lmtp_recipient:    example-test1@gmx.de
 #imap_username:     example-test1@gmx.de
 #imap_password:     xxxxx
 #imap_ssl:          False
 
 #[example_test2_gmx.de]
 #imap_hostname:     imap.gmx.net
+#smtp_recipient:    example-test2@gmx.de
 #imap_username:     example-test2@gmx.de
 #imap_password:     xxxxx
 
