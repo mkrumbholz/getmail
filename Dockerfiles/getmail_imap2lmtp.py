@@ -170,9 +170,10 @@ class Getmail(threading.Thread):
         # https://tools.ietf.org/html/rfc2177
         # Because of that, clients using IDLE are advised to terminate the IDLE and
         # re-issue it at least every 29 minutes to avoid being logged off.
-        fifteen_minutes = 15*60
+        # but 13 minutes are a sweet spot
+        max_idle_time = 13*60
 
-        if time.monotonic() - self.last_renew_imap_idle_connection > fifteen_minutes:
+        if time.monotonic() - self.last_renew_imap_idle_connection > max_idle_time:
             self.last_renew_imap_idle_connection = time.monotonic()
             logging.debug("renew imap idle session")
             self.imap.idle_done()
