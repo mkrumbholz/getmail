@@ -81,7 +81,6 @@ class Getmail(threading.Thread):
         self.exit_imap_idle_loop = True
         self.event.set()
 
-
     def imap_start_connection(self):
         logging.info("Start Getmail - server: %s:%s, username: %s, ssl: %s" % (self.imap_hostname, self.imap_port, self.imap_username, self.imap_ssl))
 

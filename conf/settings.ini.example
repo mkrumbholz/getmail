@@ -17,6 +17,7 @@ lmtp_port:         24
 lmtp_debug:        False
 lmtp_recipient:    CHANGE-ME@YOUR-MAILCOW-MAILBOX-ADDRESS.EXAMPLE
 
+
 smtp_hostname:     piler
 smtp_port:         25
 smtp_debug:        False

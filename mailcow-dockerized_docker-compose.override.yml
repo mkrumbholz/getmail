@@ -1,4 +1,5 @@
 services:
+
     getmail-mailcow:
       image: cb/getmail
       pull_policy: never
@@ -18,4 +19,4 @@ services:
       networks:
         mailcow-network:
           aliases:
-            - getmail    
+            - getmail
