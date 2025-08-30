@@ -11,7 +11,7 @@ Install:
 -  Clone getmail
    ```
    cd /opt
-   git clone https://github.com/christianbur/getmail.git
+   git clone https://github.com/mkrumbholz/getmail.git
    cd /opt/getmail
    ```
 - Copy the docker-compose.override.yml file to the mailcow-dockerized folder. Please check if there is already a docker-compose.override.yml in the mailcow directory!!
