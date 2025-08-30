@@ -1,4 +1,5 @@
 services:
+
     getmail-mailcow:
       image: cb/getmail
       pull_policy: never

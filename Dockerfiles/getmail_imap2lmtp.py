@@ -81,7 +81,6 @@ class Getmail(threading.Thread):
         self.exit_imap_idle_loop = True
         self.event.set()
 
-
     def imap_start_connection(self):
         logging.info("Start Getmail - server: %s:%s, username: %s, ssl: %s" % (self.imap_hostname, self.imap_port, self.imap_username, self.imap_ssl))
 
@@ -270,7 +269,6 @@ class Getmail(threading.Thread):
     def lmtp_deliver_mail(self, email_message):
         logging.info( "LMTP deliver: start -- LMTP host: %s:%s" % (self.lmtp_hostname, self.lmtp_port))
         try:
-
           try:
             lmtp = smtplib.LMTP(self.lmtp_hostname, self.lmtp_port)
           except ConnectionRefusedError as e:
@@ -312,7 +310,6 @@ class Getmail(threading.Thread):
             logging.error("LMTP deliver (Exception - decode error): %s" % (e))
             #logging.info(u'LMTP deliver: new eMail ----> LMTP recipient: %s' % (self.lmtp_recipient))
             logging.info(u'LMTP deliver: new eMail')
-
           return True
 
         except Exception as e:

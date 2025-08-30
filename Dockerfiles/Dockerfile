@@ -5,6 +5,7 @@ WORKDIR /app
 ARG UID=2999
 ARG GID=2999
 
+# python3 venv: https://pythonspeed.com/articles/activate-virtualenv-dockerfile/
 
 ENV VIRTUAL_ENV=/opt/venv
 
