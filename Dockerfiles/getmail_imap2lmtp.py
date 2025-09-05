@@ -282,7 +282,7 @@ class Getmail(threading.Thread):
             lmtp.set_debuglevel(1)
 
           email_message['X-getmail-retrieved-from-mailbox-user'] = self.imap_username
-          #email_message['X-getmail-retrieved-from-mailbox-folder'] = self.imap_sync_folder
+          email_message['X-getmail-retrieved-from-mailbox-folder'] = self.imap_sync_folder
 
           try:
             lmtp.send_message(email_message, to_addrs=self.lmtp_recipient)
@@ -334,6 +334,7 @@ class Getmail(threading.Thread):
             smtp.set_debuglevel(1)
 
           email_message['X-getmail-retrieved-from-mailbox-user'] = self.imap_username
+          email_message['X-getmail-retrieved-from-mailbox-folder'] = self.imap_sync_folder
 
           smtp.ehlo()
           smtp.starttls()
