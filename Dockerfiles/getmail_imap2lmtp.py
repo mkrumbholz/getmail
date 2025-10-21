@@ -181,9 +181,17 @@ class Getmail(threading.Thread):
 
     def imap_fetch_mail(self):
         #https://github.com/mjs/imapclient/blob/011748fd687c43636a8ef2c3acb9fa85782b91bc/examples/email_parsing.py
-        messages = self.imap.search(criteria=u'ALL')
-        for uid, message_data in self.imap.fetch(messages, 'RFC822').items():
-          email_message = email.message_from_bytes(message_data[b'RFC822'])
+        messages = self.imap.search(criteria=u'ALL')       
+        #https://stackoverflow.com/questions/75444763/python-imaplib-fetching-icloud-mail-rfc822-not-working
+        parts = 'RFC822'
+        if self.imap_hostname == 'imap.mail.me.com':
+          parts = 'BODY[]'
+
+        #for uid, message_data in self.imap.fetch(messages, 'RFC822').items():
+        #  email_message = email.message_from_bytes(message_data[b'RFC822'])
+
+        for uid, message_data in self.imap.fetch(messages, parts).items():
+          email_message = email.message_from_bytes(message_data[bytes(parts, "utf-8")])
           #logging.info("%s,%s,%s" % (uid, email_message.get('From'), email_message.get('Subject')) )
 
           # Scan the attachments for viruses
