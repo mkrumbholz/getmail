@@ -18,6 +18,29 @@ import struct
 import imapclient
 import configparser
 import humanfriendly
+from email.utils import parseaddr
+
+
+class ImapReconnect(Exception):
+    """Benign signal: reconnect the IMAP IDLE session immediately, without backoff."""
+    pass
+
+
+def sanitize_envelope_from(email_message, fallback):
+    """Return a syntactically valid envelope sender (MAIL FROM).
+
+    smtplib otherwise derives MAIL FROM from the From: header; a malformed From:
+    (newlines, missing '<>', extra text) then makes the (L)MTP server reject the
+    mail with '501 Invalid FROM' on every retry, so it can never be delivered.
+    The visible From: header is left untouched - only the SMTP envelope changes.
+    """
+    addr = parseaddr(email_message.get('From', ''))[1]
+    if (not addr) or ('@' not in addr) or re.search(r'[\s<>,;]', addr):
+        logging.warning("Malformed From header (%r); using fallback envelope sender %s"
+                        % (email_message.get('From'), fallback))
+        return fallback
+    return addr
+
 
 class Getmail(threading.Thread):
 
@@ -33,6 +56,7 @@ class Getmail(threading.Thread):
         self.exception_counter = 0
         self.print_lock = threading.Lock()
         self.last_renew_imap_idle_connection = time.monotonic()
+        self.last_periodic_fetch = time.monotonic()
         self.idle_check_timeout = 1
 
         self.imap_hostname        = configparser_file.get(       config_name, 'imap_hostname')
@@ -44,6 +68,10 @@ class Getmail(threading.Thread):
         self.imap_sync_folder     = configparser_file.get(       config_name, 'imap_sync_folder', fallback="INBOX")
         self.imap_move_enable     = configparser_file.getboolean(config_name, 'imap_move_enable', fallback=False)
         self.imap_debug           = configparser_file.getboolean(config_name, 'imap_debug', fallback=False)
+        # Safety net: force a full fetch every N seconds even if the server sent no
+        # IDLE 'EXISTS' notification (some servers silently drop them -> mail piles up
+        # on the server and is only delivered late). 0 disables it (pure IDLE behaviour).
+        self.imap_periodic_fetch_interval = configparser_file.getint(config_name, 'imap_periodic_fetch_interval', fallback=60)
 
         self.send_protocol        = configparser_file.get(       config_name, 'send_protocol', fallback="lmtp")
 
@@ -67,6 +95,10 @@ class Getmail(threading.Thread):
           try:
             self.event.wait(5)
             self.imap_idle()
+          except ImapReconnect as e:
+            # Routine server-side IDLE timeout etc. -> reconnect right away, no penalty.
+            logging.info("INFO: %s" % (e))
+            continue
           except Exception as e:
             logging.error("ERROR: %s" % (e))
             #traceback.print_exc()
@@ -118,6 +150,7 @@ class Getmail(threading.Thread):
         self.create_imap_move_folder()
         logging.info("IMAP fetch mail - initial")
         self.imap_fetch_mail()
+        self.last_periodic_fetch = time.monotonic()
 
         # Start IDLE mode
         self.imap.idle()
@@ -142,6 +175,18 @@ class Getmail(threading.Thread):
 
         self.renew_imap_idle_connection()
 
+        # Safety net: periodically force a fetch even without an EXISTS notification,
+        # so mail can't get stuck on the server if an IDLE notification was missed
+        # or the IDLE connection went silently stale.
+        if self.imap_periodic_fetch_interval > 0 and \
+           (time.monotonic() - self.last_periodic_fetch) > self.imap_periodic_fetch_interval:
+            self.last_periodic_fetch = time.monotonic()
+            logging.debug("periodic safety fetch")
+            self.imap.idle_done()
+            self.imap_fetch_mail()
+            self.imap.idle()
+            return
+
         if responses == []:
             if (execution_time_idle_check < self.idle_check_timeout / 2):
               #logging.info("TEST -- IMAP IDLE response: %s " % responses)
@@ -154,7 +199,7 @@ class Getmail(threading.Thread):
         elif responses == [(b'OK', b'Still here')]:
             return
         elif responses == [(b'BYE', b'timeout')]:
-            raise Exception('IMAP Connection Timeout, restart connection')
+            raise ImapReconnect('IMAP IDLE timeout (server closed the connection), reconnecting')
 
         logging.debug("IMAP IDLE response: %s " % responses)
         for item in responses:
@@ -292,20 +337,14 @@ class Getmail(threading.Thread):
           email_message['X-getmail-retrieved-from-mailbox-user'] = self.imap_username
           email_message['X-getmail-retrieved-from-mailbox-folder'] = self.imap_sync_folder
 
+          envelope_from = sanitize_envelope_from(email_message, self.lmtp_recipient)
+
           try:
-            lmtp.send_message(email_message, to_addrs=self.lmtp_recipient)
+            lmtp.send_message(email_message, from_addr=envelope_from, to_addrs=self.lmtp_recipient)
           except Exception as e:
-            logging.error("LMTP deliver (Exception - send_message #1): %s" % (e))
+            logging.error("LMTP deliver (Exception - send_message): %s" % (e))
             traceback.print_exc()
-
-            try:
-              email_from = email_message.get('From')
-              lmtp.send_message(email_message, from_addr=email_from, to_addrs=self.lmtp_recipient)
-            except Exception as e:
-              logging.error("LMTP deliver (Exception - send_message #2): %s" % (e))
-              return False
-
-            #return False
+            return False
           finally:
             lmtp.quit()
 
@@ -348,20 +387,15 @@ class Getmail(threading.Thread):
           smtp.starttls()
           smtp.ehlo()
 
+          envelope_from = sanitize_envelope_from(email_message, self.smtp_recipient)
+
           try:
             #https://docs.python.org/3/library/smtplib.html#smtplib.SMTP.send_message
-            smtp.send_message(email_message, to_addrs=self.smtp_recipient)
+            smtp.send_message(email_message, from_addr=envelope_from, to_addrs=self.smtp_recipient)
           except Exception as e:
-            logging.error("SMTP deliver (Exception - send_message #1): %s" % (e))
+            logging.error("SMTP deliver (Exception - send_message): %s" % (e))
             traceback.print_exc()
-
-            try:
-              email_from = email_message.get('From')
-              smtp.send_message(email_message, from_addr=email_from, to_addrs=self.smtp_recipient)
-            except Exception as e:
-              logging.error("SMTP deliver (Exception - send_message #2): %s" % (e))
-              return False
-
+            return False
           finally:
             smtp.quit()
 
