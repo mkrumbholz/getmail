@@ -97,15 +97,15 @@ class Getmail(threading.Thread):
             self.imap_idle()
           except ImapReconnect as e:
             # Routine server-side IDLE timeout etc. -> reconnect right away, no penalty.
-            logging.info("INFO: %s" % (e))
+            logging.info("%s" % (e))
             continue
           except Exception as e:
-            logging.error("ERROR: %s" % (e))
+            logging.error("%s" % (e))
             #traceback.print_exc()
 
           if not self.exit_imap_idle_loop:
             self.exception_counter += 1
-            logging.error("ERROR: restart thread in %s minutes (counter: %d)" % (self.exception_counter * self.exception_counter, self.exception_counter))
+            logging.error("restart thread in %s minutes (counter: %d)" % (self.exception_counter * self.exception_counter, self.exception_counter))
             self.event.wait(60 * self.exception_counter * self.exception_counter )
 
     def imap_idle_stop(self):
@@ -269,7 +269,7 @@ class Getmail(threading.Thread):
                 #Get result
                 result = s.recv(4096).decode("utf-8").strip()
               except (socket.error, BrokenPipeError) as e:
-                logging.error(f"Error sending attachment to ClamAV: {e}")
+                logging.error(f"sending attachment to ClamAV: {e}")
                 return False
               if result != None and "OK" in result:
                 virus_found = False
@@ -320,7 +320,7 @@ class Getmail(threading.Thread):
         return result
 
     def lmtp_deliver_mail(self, email_message):
-        logging.info( "LMTP deliver: start -- LMTP host: %s:%s" % (self.lmtp_hostname, self.lmtp_port))
+        logging.info("LMTP deliver: start -- LMTP host: %s:%s" % (self.lmtp_hostname, self.lmtp_port))
         try:
           try:
             lmtp = smtplib.LMTP(self.lmtp_hostname, self.lmtp_port)
@@ -438,7 +438,7 @@ def start_getmail():
       except KeyboardInterrupt:
         exit_program = True
       except Exception as e:
-        logging.error("ERROR: %s" % (e))
+        logging.error("%s" % (e))
         traceback.print_exc()
   finally:
     logging.info("START: shutdown all IMAP connections")
@@ -454,7 +454,7 @@ def get_configparser_file():
   if os.path.isfile("./settings.ini"):
     config_file_path = "./settings.ini"
   else:
-    logging.error("ERROR settings.ini not found!")
+    logging.error("settings.ini not found!")
     return
 
   logging.info("use config file: %s" % config_file_path)
