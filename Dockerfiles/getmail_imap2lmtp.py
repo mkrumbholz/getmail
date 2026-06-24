@@ -116,7 +116,7 @@ class Getmail(threading.Thread):
     def imap_start_connection(self):
         logging.info("Start Getmail - server: %s:%s, username: %s, ssl: %s" % (self.imap_hostname, self.imap_port, self.imap_username, self.imap_ssl))
 
-        self.imap = imapclient.IMAPClient(self.imap_hostname, port=self.imap_port, ssl=self.imap_ssl, use_uid=True)
+        self.imap = imapclient.IMAPClient(self.imap_hostname, port=self.imap_port, ssl=self.imap_ssl, use_uid=True, keepalive=300)
         login_status = self.imap.login(self.imap_username, self.imap_password).decode("utf-8")
         logging.info("Login - status: %s" % login_status)
 
@@ -225,8 +225,14 @@ class Getmail(threading.Thread):
             self.check_imap_idle_response_counter_between_renew = 0
 
     def imap_fetch_mail(self):
+        #check if connection is still active
+        try:
+            self.imap.noop()
+        except Exception:
+            raise ImapReconnect("IMAP connection lost during search")
+
         #https://github.com/mjs/imapclient/blob/011748fd687c43636a8ef2c3acb9fa85782b91bc/examples/email_parsing.py
-        messages = self.imap.search(criteria=u'ALL')       
+        messages = self.imap.search(criteria=u'ALL')
         #https://stackoverflow.com/questions/75444763/python-imaplib-fetching-icloud-mail-rfc822-not-working
         parts = 'RFC822'
         if self.imap_hostname == 'imap.mail.me.com':
